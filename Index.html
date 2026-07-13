@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MA CCTV Records — บันทึกการสำรวจ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="topbar-mark">MA</div>
+    <div class="topbar-text">
+      <h1>MA CCTV Records</h1>
+      <p>แบบบันทึกการสำรวจกล้องวงจรปิดและระบบควบคุมการเข้าออก</p>
+    </div>
+  </header>
+
+  <form id="surveyForm" novalidate>
+
+    <!-- ================= SECTION 1: ข้อมูลสถานที่ ================= -->
+    <section class="card">
+      <div class="card-head">
+        <span class="card-num">01</span>
+        <h2>ข้อมูลสถานที่</h2>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="building">อาคาร <span class="req">*</span></label>
+          <select id="building" required></select>
+        </div>
+        <div class="field">
+          <label for="department">หน่วยงาน <span class="req">*</span></label>
+          <select id="department" required></select>
+        </div>
+        <div class="field">
+          <label for="surveyDate">วันที่สำรวจ <span class="req">*</span></label>
+          <input type="text" id="surveyDate" placeholder="dd-mm-yyyy" readonly required autocomplete="off">
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SECTION 2: NVR & Camera ================= -->
+    <section class="card">
+      <div class="card-head">
+        <span class="card-num">02</span>
+        <h2>ข้อมูล NVR และกล้อง</h2>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="nvrBrand">Brand NVR</label>
+          <input type="text" id="nvrBrand" placeholder="เช่น Hikvision">
+        </div>
+        <div class="field">
+          <label for="nvrModel">Model NVR</label>
+          <input type="text" id="nvrModel" placeholder="เช่น DS-7732NI-K4">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Brand / Model กล้อง <span class="hint">(กดเพิ่มได้หากมีมากกว่า 1 รุ่น)</span></label>
+        <div id="cameraList" class="repeat-list"></div>
+        <button type="button" class="btn-add" id="addCamera">+ เพิ่มรุ่นกล้อง</button>
+      </div>
+
+      <div class="grid-3">
+        <div class="field">
+          <label for="cameraCount">จำนวนกล้อง (ตัว)</label>
+          <input type="number" id="cameraCount" min="0" placeholder="0">
+        </div>
+        <div class="field">
+          <label for="resolution">Video Resolution</label>
+          <input type="text" id="resolution" placeholder="เช่น 4MP / 1080p">
+        </div>
+        <div class="field">
+          <label for="frameRate">Frame Rate (fps)</label>
+          <input type="text" id="frameRate" placeholder="เช่น 25">
+        </div>
+        <div class="field">
+          <label for="bitrateControl">Bitrate Control</label>
+          <select id="bitrateControl"></select>
+        </div>
+        <div class="field">
+          <label for="bitrate">Bitrate (kb/s)</label>
+          <input type="text" id="bitrate" placeholder="เช่น 4096">
+        </div>
+        <div class="field">
+          <label for="videoEncoding">Video Encoding</label>
+          <select id="videoEncoding"></select>
+        </div>
+        <div class="field">
+          <label for="hddTotal">HDD รวม (TB)</label>
+          <input type="text" id="hddTotal" placeholder="เช่น 8">
+        </div>
+        <div class="field">
+          <label for="playback">Playback (วัน)</label>
+          <input type="text" id="playback" placeholder="เช่น 30">
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SECTION 3: HDD (S.M.A.R.T.) ================= -->
+    <section class="card">
+      <div class="card-head">
+        <span class="card-num">03</span>
+        <h2>ข้อมูล HDD แต่ละลูก (S.M.A.R.T.)</h2>
+      </div>
+      <div id="hddList" class="hdd-list"></div>
+      <button type="button" class="btn-add" id="addHdd">+ เพิ่มฮาร์ดดิสก์</button>
+    </section>
+
+    <!-- ================= SECTION 4: UPS ================= -->
+    <section class="card">
+      <div class="card-head">
+        <span class="card-num">04</span>
+        <h2>UPS</h2>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="upsBrand">Brand UPS</label>
+          <input type="text" id="upsBrand" placeholder="เช่น APC">
+        </div>
+        <div class="field">
+          <label for="upsModel">Model UPS</label>
+          <input type="text" id="upsModel" placeholder="เช่น SMT1500">
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SECTION 5: บัญชีผู้ใช้ ================= -->
+    <section class="card">
+      <div class="card-head">
+        <span class="card-num">05</span>
+        <h2>บัญชีผู้ใช้งานระบบ</h2>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="idAdmin">ID Admin</label>
+          <input type="text" id="idAdmin" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="pwAdmin">PW Admin</label>
+          <input type="text" id="pwAdmin" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="idUser">ID User</label>
+          <input type="text" id="idUser" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="pwUser">PW User</label>
+          <input type="text" id="pwUser" autocomplete="off">
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SECTION 6: Pattern Lock ================= -->
+    <section class="card">
+      <div class="card-head">
+        <span class="card-num">06</span>
+        <h2>Pattern Lock</h2>
+      </div>
+      <p class="hint">ลากเชื่อมจุดตามรูปแบบล็อกหน้าจอ แล้วบันทึกไว้เป็นข้อมูลอ้างอิง</p>
+      <div class="pattern-wrap">
+        <svg id="patternSvg" viewBox="0 0 240 240" width="240" height="240"></svg>
+        <div class="pattern-actions">
+          <span id="patternValue" class="pattern-value">ยังไม่ได้วาด</span>
+          <button type="button" class="btn-add" id="clearPattern">ล้างรูปแบบ</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="submit-row">
+      <button type="submit" class="btn-submit" id="submitBtn">บันทึกข้อมูล</button>
+      <span id="statusMsg" class="status-msg"></span>
+    </div>
+
+  </form>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/script.js"></script>
+</body>
+</html>
