@@ -4,7 +4,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  // ---------- 1. Populate dropdowns from config.js ----------
+  // ---------- 0. Helpers ----------
   function fillSelect(selectEl, items, placeholder){
     selectEl.innerHTML = '';
     const ph = document.createElement('option');
@@ -21,18 +21,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ---------- 1. อาคาร -> หน่วยงาน (cascading) ----------
   const buildingSelect = document.getElementById('building');
   const departmentSelect = document.getElementById('department');
 
+  function resetDepartmentPlaceholder(){
+    departmentSelect.innerHTML = '';
+    const ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = '-- เลือกอาคารก่อน --';
+    ph.disabled = true;
+    ph.selected = true;
+    departmentSelect.appendChild(ph);
+    departmentSelect.disabled = true;
+  }
+
   fillSelect(buildingSelect, Object.keys(CONFIG.BUILDING_DEPARTMENTS), '-- เลือกอาคาร --');
-  departmentSelect.innerHTML = '';
-  const deptPlaceholder = document.createElement('option');
-  deptPlaceholder.value = '';
-  deptPlaceholder.textContent = '-- เลือกอาคารก่อน --';
-  deptPlaceholder.disabled = true;
-  deptPlaceholder.selected = true;
-  departmentSelect.appendChild(deptPlaceholder);
-  departmentSelect.disabled = true;
+  resetDepartmentPlaceholder();
 
   buildingSelect.addEventListener('change', () => {
     const depts = CONFIG.BUILDING_DEPARTMENTS[buildingSelect.value] || [];
@@ -154,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ค่าเริ่มต้น = วันปัจจุบัน
   dateInput.value = formatDate(new Date());
 
-  // ---------- 3. Camera model rows (col G — repeatable) ----------
+  // ---------- 3. Camera model rows (col F,G — repeatable, join ด้วย \n) ----------
   const cameraList = document.getElementById('cameraList');
   function addCameraRow(brand='', model=''){
     const row = document.createElement('div');
@@ -172,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('addCamera').onclick = () => addCameraRow();
   addCameraRow(); // start with one row
 
-  // ---------- 4. HDD rows (col P–W — repeatable group) ----------
+  // ---------- 4. HDD rows (col P–W — repeatable group, join ด้วย \n) ----------
   const hddList = document.getElementById('hddList');
   let hddCounter = 0;
   function addHddRow(){
@@ -203,9 +208,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('addHdd').onclick = addHddRow;
   addHddRow(); // start with one HDD
 
-  // ---------- 5. Pattern Lock (3x3) ----------
+  // ---------- 5. Pattern Lock (3x3, ลากแล้ว crop เป็นรูป) ----------
   const svg = document.getElementById('patternSvg');
   const patternValueEl = document.getElementById('patternValue');
+  const patternPreview = document.getElementById('patternPreview');
   const NS = 'http://www.w3.org/2000/svg';
   const nodes = []; // {x,y,index}
   const spacing = 80, offset = 40;
@@ -218,6 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let selected = [];
   let dragging = false;
   let lineGroup, dotGroup;
+  let patternImageData = null; // base64 PNG (ไม่มี prefix) สำหรับส่งไป backend
 
   function drawBase(){
     svg.innerHTML = '';
@@ -281,32 +288,23 @@ document.addEventListener('DOMContentLoaded', () => {
       redraw();
     }
   }
-  function endDrag(){
-    if(!dragging) return;
-    dragging = false;
-    cropPatternToImage();
-  }
 
   // ครอปเฉพาะกรอบของเส้นที่ลาก แล้วแปลงเป็นรูปภาพ (PNG base64)
-  const patternPreview = document.getElementById('patternPreview');
-  let patternImageData = null; // base64 (ไม่มี prefix) สำหรับส่งไป backend
-
   function cropPatternToImage(){
     if(selected.length < 2){ patternImageData = null; patternPreview.hidden = true; return; }
 
     const used = selected.map(idx => nodes.find(n => n.index === idx));
-    const pad = 30;
-    const minX = Math.max(0, Math.min(...used.map(n => n.x)) - pad);
-    const minY = Math.max(0, Math.min(...used.map(n => n.y)) - pad);
-    const maxX = Math.min(240, Math.max(...used.map(n => n.x)) + pad);
-    const maxY = Math.min(240, Math.max(...used.map(n => n.y)) + pad);
+    const pad2 = 30;
+    const minX = Math.max(0, Math.min(...used.map(n => n.x)) - pad2);
+    const minY = Math.max(0, Math.min(...used.map(n => n.y)) - pad2);
+    const maxX = Math.min(240, Math.max(...used.map(n => n.x)) + pad2);
+    const maxY = Math.min(240, Math.max(...used.map(n => n.y)) + pad2);
     const w = maxX - minX, h = maxY - minY;
 
     const clone = svg.cloneNode(true);
     clone.setAttribute('viewBox', `${minX} ${minY} ${w} ${h}`);
     clone.setAttribute('width', w);
     clone.setAttribute('height', h);
-    // พื้นหลังขาวให้ svg ก่อน export เป็นรูป
     const bg = document.createElementNS(NS, 'rect');
     bg.setAttribute('x', minX); bg.setAttribute('y', minY);
     bg.setAttribute('width', w); bg.setAttribute('height', h);
@@ -319,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const img = new Image();
     img.onload = () => {
-      const scale = 3; // ความคมชัด
+      const scale = 3;
       const canvas = document.createElement('canvas');
       canvas.width = w * scale;
       canvas.height = h * scale;
@@ -333,6 +331,12 @@ document.addEventListener('DOMContentLoaded', () => {
       patternPreview.hidden = false;
     };
     img.src = svgDataUrl;
+  }
+
+  function endDrag(){
+    if(!dragging) return;
+    dragging = false;
+    cropPatternToImage();
   }
 
   drawBase();
@@ -355,11 +359,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusMsg = document.getElementById('statusMsg');
   const submitBtn = document.getElementById('submitBtn');
 
+  function resetForm(){
+    form.reset();
+    dateInput.value = formatDate(new Date());
+    resetDepartmentPlaceholder();
+    cameraList.innerHTML = ''; addCameraRow();
+    hddList.innerHTML = ''; hddCounter = 0; addHddRow();
+    selected = []; redraw();
+    patternImageData = null;
+    patternPreview.hidden = true;
+    fillSelect(buildingSelect, Object.keys(CONFIG.BUILDING_DEPARTMENTS), '-- เลือกอาคาร --');
+    fillSelect(document.getElementById('bitrateControl'), CONFIG.BITRATE_CONTROL, '-- เลือก --');
+    fillSelect(document.getElementById('videoEncoding'), CONFIG.VIDEO_ENCODING, '-- เลือก --');
+  }
+
   form.addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const building = document.getElementById('building').value;
-    const department = document.getElementById('department').value;
+    const building = buildingSelect.value;
+    const department = departmentSelect.value;
     const surveyDate = dateInput.value;
 
     if(!building || !department || !surveyDate){
@@ -368,13 +386,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Camera rows -> joined strings for column G (and reference brand in F)
+    // กล้องหลายรุ่น / HDD หลายลูก -> ต่อกันด้วยการขึ้นบรรทัดใหม่ (\n) ในเซลล์เดียวกัน
+    // เรียงลำดับตรงกันทุกคอลัมน์ (แถวที่ 1 ของทุกคอลัมน์ = ชุดเดียวกัน)
     const camBrands = [...cameraList.querySelectorAll('.cam-brand')].map(i => i.value.trim());
     const camModels = [...cameraList.querySelectorAll('.cam-model')].map(i => i.value.trim());
 
-    // HDD rows -> joined strings per column, aligned by index
     const hddCards = [...hddList.querySelectorAll('.hdd-card')];
-    const collect = (cls) => hddCards.map(card => card.querySelector('.' + cls).value.trim()).join(' | ');
+    const collect = (cls) => hddCards.map(card => card.querySelector('.' + cls).value.trim()).join('\n');
 
     const payload = {
       building,
@@ -382,8 +400,8 @@ document.addEventListener('DOMContentLoaded', () => {
       surveyDate,
       nvrBrand: document.getElementById('nvrBrand').value.trim(),
       nvrModel: document.getElementById('nvrModel').value.trim(),
-      cameraBrand: camBrands.join(' | '),
-      cameraModel: camModels.join(' | '),
+      cameraBrand: camBrands.join('\n'),
+      cameraModel: camModels.join('\n'),
       cameraCount: document.getElementById('cameraCount').value.trim(),
       resolution: document.getElementById('resolution').value.trim(),
       frameRate: document.getElementById('frameRate').value.trim(),
@@ -407,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
       idUser: document.getElementById('idUser').value.trim(),
       pwUser: document.getElementById('pwUser').value.trim(),
       patternSequence: selected.join('-'),
-      patternImage: patternImageData || '', // base64 PNG (ไม่มี prefix) — backend จะแปลงเป็นไฟล์รูปใน Drive
+      patternImage: patternImageData || '', // base64 PNG (ไม่มี prefix) — backend แปลงเป็นไฟล์รูปใน Drive
     };
 
     submitBtn.disabled = true;
@@ -424,19 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
       statusMsg.textContent = 'บันทึกข้อมูลเรียบร้อยแล้ว';
       statusMsg.className = 'status-msg ok';
       submitBtn.disabled = false;
-      form.reset();
-      dateInput.value = formatDate(new Date());
-      departmentSelect.disabled = true;
-      departmentSelect.innerHTML = '';
-      departmentSelect.appendChild(deptPlaceholder.cloneNode(true));
-      cameraList.innerHTML = ''; addCameraRow();
-      hddList.innerHTML = ''; hddCounter = 0; addHddRow();
-      selected = []; redraw();
-      patternPreview.hidden = true;
-      patternImageData = null;
-      fillSelect(buildingSelect, Object.keys(CONFIG.BUILDING_DEPARTMENTS), '-- เลือกอาคาร --');
-      fillSelect(document.getElementById('bitrateControl'), CONFIG.BITRATE_CONTROL, '-- เลือก --');
-      fillSelect(document.getElementById('videoEncoding'), CONFIG.VIDEO_ENCODING, '-- เลือก --');
+      resetForm();
     }).catch(() => {
       statusMsg.textContent = 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
       statusMsg.className = 'status-msg err';
