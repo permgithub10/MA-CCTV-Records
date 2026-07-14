@@ -126,7 +126,7 @@ select{ appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmln
 
 .repeat-row{
   display:grid;
-  grid-template-columns:1fr 1fr auto;
+  grid-template-columns:1fr 1fr;
   gap:10px;
   align-items:center;
 }
