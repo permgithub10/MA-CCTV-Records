@@ -189,12 +189,6 @@ select{ appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmln
   touch-action:none;
 }
 .pattern-actions{ display:flex; flex-direction:column; gap:10px; }
-.pattern-preview{
-  width:120px;
-  border:1px solid var(--line);
-  border-radius:8px;
-  background:#fff;
-}
 .pattern-value{
   font-family:var(--mono);
   font-size:13px;
