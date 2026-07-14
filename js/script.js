@@ -208,23 +208,23 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('addHdd').onclick = addHddRow;
   addHddRow(); // start with one HDD
 
-  // ---------- 5. Pattern Lock (3x3, ลากแล้ว crop เป็นรูป) ----------
+  // ---------- 5. Pattern Lock (3x3, ตำแหน่งตัวเลขอ้างอิงตาม numpad) ----------
+  // เลย์เอาต์ตาม numpad จริง: แถวบน 7-8-9, แถวกลาง 4-5-6, แถวล่าง 1-2-3
   const svg = document.getElementById('patternSvg');
   const patternValueEl = document.getElementById('patternValue');
-  const patternPreview = document.getElementById('patternPreview');
   const NS = 'http://www.w3.org/2000/svg';
+  const NUMPAD_GRID = [[7,8,9],[4,5,6],[1,2,3]];
   const nodes = []; // {x,y,index}
   const spacing = 80, offset = 40;
   for(let r=0; r<3; r++){
     for(let c=0; c<3; c++){
-      nodes.push({ index: r*3 + c + 1, x: offset + c*spacing, y: offset + r*spacing });
+      nodes.push({ index: NUMPAD_GRID[r][c], x: offset + c*spacing, y: offset + r*spacing });
     }
   }
 
   let selected = [];
   let dragging = false;
   let lineGroup, dotGroup;
-  let patternImageData = null; // base64 PNG (ไม่มี prefix) สำหรับส่งไป backend
 
   function drawBase(){
     svg.innerHTML = '';
@@ -236,12 +236,26 @@ document.addEventListener('DOMContentLoaded', () => {
       const c = document.createElementNS(NS, 'circle');
       c.setAttribute('cx', n.x);
       c.setAttribute('cy', n.y);
-      c.setAttribute('r', 10);
+      c.setAttribute('r', 14);
       c.setAttribute('fill', '#fff');
       c.setAttribute('stroke', '#0e6e6e');
       c.setAttribute('stroke-width', 2);
       c.dataset.index = n.index;
       dotGroup.appendChild(c);
+
+      const label = document.createElementNS(NS, 'text');
+      label.setAttribute('x', n.x);
+      label.setAttribute('y', n.y);
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('dominant-baseline', 'central');
+      label.setAttribute('font-size', '13');
+      label.setAttribute('font-family', "'IBM Plex Mono', monospace");
+      label.setAttribute('font-weight', '600');
+      label.setAttribute('fill', '#0e6e6e');
+      label.setAttribute('pointer-events', 'none');
+      label.dataset.index = n.index;
+      label.textContent = n.index;
+      dotGroup.appendChild(label);
     });
   }
 
@@ -250,6 +264,10 @@ document.addEventListener('DOMContentLoaded', () => {
     dotGroup.querySelectorAll('circle').forEach(c => {
       const idx = parseInt(c.dataset.index);
       c.setAttribute('fill', selected.includes(idx) ? '#0e6e6e' : '#fff');
+    });
+    dotGroup.querySelectorAll('text').forEach(t => {
+      const idx = parseInt(t.dataset.index);
+      t.setAttribute('fill', selected.includes(idx) ? '#ffffff' : '#0e6e6e');
     });
     for(let i=0; i<selected.length-1; i++){
       const a = nodes.find(n => n.index === selected[i]);
@@ -270,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const scaleX = 240 / rect.width, scaleY = 240 / rect.height;
     const x = (clientX - rect.left) * scaleX;
     const y = (clientY - rect.top) * scaleY;
-    return nodes.find(n => Math.hypot(n.x - x, n.y - y) < 16);
+    return nodes.find(n => Math.hypot(n.x - x, n.y - y) < 18);
   }
 
   function startDrag(clientX, clientY){
@@ -288,56 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
       redraw();
     }
   }
-
-  // ครอปเฉพาะกรอบของเส้นที่ลาก แล้วแปลงเป็นรูปภาพ (PNG base64)
-  function cropPatternToImage(){
-    if(selected.length < 2){ patternImageData = null; patternPreview.hidden = true; return; }
-
-    const used = selected.map(idx => nodes.find(n => n.index === idx));
-    const pad2 = 30;
-    const minX = Math.max(0, Math.min(...used.map(n => n.x)) - pad2);
-    const minY = Math.max(0, Math.min(...used.map(n => n.y)) - pad2);
-    const maxX = Math.min(240, Math.max(...used.map(n => n.x)) + pad2);
-    const maxY = Math.min(240, Math.max(...used.map(n => n.y)) + pad2);
-    const w = maxX - minX, h = maxY - minY;
-
-    const clone = svg.cloneNode(true);
-    clone.setAttribute('viewBox', `${minX} ${minY} ${w} ${h}`);
-    clone.setAttribute('width', w);
-    clone.setAttribute('height', h);
-    const bg = document.createElementNS(NS, 'rect');
-    bg.setAttribute('x', minX); bg.setAttribute('y', minY);
-    bg.setAttribute('width', w); bg.setAttribute('height', h);
-    bg.setAttribute('fill', '#ffffff');
-    clone.insertBefore(bg, clone.firstChild);
-
-    const svgString = new XMLSerializer().serializeToString(clone);
-    const svg64 = btoa(unescape(encodeURIComponent(svgString)));
-    const svgDataUrl = 'data:image/svg+xml;base64,' + svg64;
-
-    const img = new Image();
-    img.onload = () => {
-      const scale = 3;
-      const canvas = document.createElement('canvas');
-      canvas.width = w * scale;
-      canvas.height = h * scale;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const pngDataUrl = canvas.toDataURL('image/png');
-      patternImageData = pngDataUrl.split(',')[1];
-      patternPreview.src = pngDataUrl;
-      patternPreview.hidden = false;
-    };
-    img.src = svgDataUrl;
-  }
-
-  function endDrag(){
-    if(!dragging) return;
-    dragging = false;
-    cropPatternToImage();
-  }
+  function endDrag(){ dragging = false; }
 
   drawBase();
   svg.addEventListener('mousedown', e => startDrag(e.clientX, e.clientY));
@@ -350,8 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('clearPattern').onclick = () => {
     selected = [];
     redraw();
-    patternImageData = null;
-    patternPreview.hidden = true;
   };
 
   // ---------- 6. Submit ----------
@@ -366,8 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
     cameraList.innerHTML = ''; addCameraRow();
     hddList.innerHTML = ''; hddCounter = 0; addHddRow();
     selected = []; redraw();
-    patternImageData = null;
-    patternPreview.hidden = true;
     fillSelect(buildingSelect, Object.keys(CONFIG.BUILDING_DEPARTMENTS), '-- เลือกอาคาร --');
     fillSelect(document.getElementById('bitrateControl'), CONFIG.BITRATE_CONTROL, '-- เลือก --');
     fillSelect(document.getElementById('videoEncoding'), CONFIG.VIDEO_ENCODING, '-- เลือก --');
@@ -424,8 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
       pwAdmin: document.getElementById('pwAdmin').value.trim(),
       idUser: document.getElementById('idUser').value.trim(),
       pwUser: document.getElementById('pwUser').value.trim(),
-      patternSequence: selected.join('-'),
-      patternImage: patternImageData || '', // base64 PNG (ไม่มี prefix) — backend แปลงเป็นไฟล์รูปใน Drive
+      patternLock: selected.join('-'), // ลำดับตัวเลขอ้างอิงตาม numpad เช่น "7-4-1-2-3"
     };
 
     submitBtn.disabled = true;
