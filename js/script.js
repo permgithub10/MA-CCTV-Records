@@ -21,8 +21,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  fillSelect(document.getElementById('building'), CONFIG.BUILDINGS, '-- เลือกอาคาร --');
-  fillSelect(document.getElementById('department'), CONFIG.DEPARTMENTS, '-- เลือกหน่วยงาน --');
+  const buildingSelect = document.getElementById('building');
+  const departmentSelect = document.getElementById('department');
+
+  fillSelect(buildingSelect, Object.keys(CONFIG.BUILDING_DEPARTMENTS), '-- เลือกอาคาร --');
+  departmentSelect.innerHTML = '';
+  const deptPlaceholder = document.createElement('option');
+  deptPlaceholder.value = '';
+  deptPlaceholder.textContent = '-- เลือกอาคารก่อน --';
+  deptPlaceholder.disabled = true;
+  deptPlaceholder.selected = true;
+  departmentSelect.appendChild(deptPlaceholder);
+  departmentSelect.disabled = true;
+
+  buildingSelect.addEventListener('change', () => {
+    const depts = CONFIG.BUILDING_DEPARTMENTS[buildingSelect.value] || [];
+    departmentSelect.disabled = false;
+    fillSelect(departmentSelect, depts, '-- เลือกหน่วยงาน --');
+  });
+
   fillSelect(document.getElementById('bitrateControl'), CONFIG.BITRATE_CONTROL, '-- เลือก --');
   fillSelect(document.getElementById('videoEncoding'), CONFIG.VIDEO_ENCODING, '-- เลือก --');
 
@@ -133,6 +150,9 @@ document.addEventListener('DOMContentLoaded', () => {
     calDate = new Date();
     renderCalendar();
   });
+
+  // ค่าเริ่มต้น = วันปัจจุบัน
+  dateInput.value = formatDate(new Date());
 
   // ---------- 3. Camera model rows (col G — repeatable) ----------
   const cameraList = document.getElementById('cameraList');
@@ -261,7 +281,59 @@ document.addEventListener('DOMContentLoaded', () => {
       redraw();
     }
   }
-  function endDrag(){ dragging = false; }
+  function endDrag(){
+    if(!dragging) return;
+    dragging = false;
+    cropPatternToImage();
+  }
+
+  // ครอปเฉพาะกรอบของเส้นที่ลาก แล้วแปลงเป็นรูปภาพ (PNG base64)
+  const patternPreview = document.getElementById('patternPreview');
+  let patternImageData = null; // base64 (ไม่มี prefix) สำหรับส่งไป backend
+
+  function cropPatternToImage(){
+    if(selected.length < 2){ patternImageData = null; patternPreview.hidden = true; return; }
+
+    const used = selected.map(idx => nodes.find(n => n.index === idx));
+    const pad = 30;
+    const minX = Math.max(0, Math.min(...used.map(n => n.x)) - pad);
+    const minY = Math.max(0, Math.min(...used.map(n => n.y)) - pad);
+    const maxX = Math.min(240, Math.max(...used.map(n => n.x)) + pad);
+    const maxY = Math.min(240, Math.max(...used.map(n => n.y)) + pad);
+    const w = maxX - minX, h = maxY - minY;
+
+    const clone = svg.cloneNode(true);
+    clone.setAttribute('viewBox', `${minX} ${minY} ${w} ${h}`);
+    clone.setAttribute('width', w);
+    clone.setAttribute('height', h);
+    // พื้นหลังขาวให้ svg ก่อน export เป็นรูป
+    const bg = document.createElementNS(NS, 'rect');
+    bg.setAttribute('x', minX); bg.setAttribute('y', minY);
+    bg.setAttribute('width', w); bg.setAttribute('height', h);
+    bg.setAttribute('fill', '#ffffff');
+    clone.insertBefore(bg, clone.firstChild);
+
+    const svgString = new XMLSerializer().serializeToString(clone);
+    const svg64 = btoa(unescape(encodeURIComponent(svgString)));
+    const svgDataUrl = 'data:image/svg+xml;base64,' + svg64;
+
+    const img = new Image();
+    img.onload = () => {
+      const scale = 3; // ความคมชัด
+      const canvas = document.createElement('canvas');
+      canvas.width = w * scale;
+      canvas.height = h * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const pngDataUrl = canvas.toDataURL('image/png');
+      patternImageData = pngDataUrl.split(',')[1];
+      patternPreview.src = pngDataUrl;
+      patternPreview.hidden = false;
+    };
+    img.src = svgDataUrl;
+  }
 
   drawBase();
   svg.addEventListener('mousedown', e => startDrag(e.clientX, e.clientY));
@@ -271,7 +343,12 @@ document.addEventListener('DOMContentLoaded', () => {
   svg.addEventListener('touchmove', e => { const t = e.touches[0]; moveDrag(t.clientX, t.clientY); e.preventDefault(); }, {passive:false});
   svg.addEventListener('touchend', endDrag);
 
-  document.getElementById('clearPattern').onclick = () => { selected = []; redraw(); };
+  document.getElementById('clearPattern').onclick = () => {
+    selected = [];
+    redraw();
+    patternImageData = null;
+    patternPreview.hidden = true;
+  };
 
   // ---------- 6. Submit ----------
   const form = document.getElementById('surveyForm');
@@ -329,7 +406,8 @@ document.addEventListener('DOMContentLoaded', () => {
       pwAdmin: document.getElementById('pwAdmin').value.trim(),
       idUser: document.getElementById('idUser').value.trim(),
       pwUser: document.getElementById('pwUser').value.trim(),
-      patternLock: selected.join('-'),
+      patternSequence: selected.join('-'),
+      patternImage: patternImageData || '', // base64 PNG (ไม่มี prefix) — backend จะแปลงเป็นไฟล์รูปใน Drive
     };
 
     submitBtn.disabled = true;
@@ -347,11 +425,16 @@ document.addEventListener('DOMContentLoaded', () => {
       statusMsg.className = 'status-msg ok';
       submitBtn.disabled = false;
       form.reset();
+      dateInput.value = formatDate(new Date());
+      departmentSelect.disabled = true;
+      departmentSelect.innerHTML = '';
+      departmentSelect.appendChild(deptPlaceholder.cloneNode(true));
       cameraList.innerHTML = ''; addCameraRow();
       hddList.innerHTML = ''; hddCounter = 0; addHddRow();
       selected = []; redraw();
-      fillSelect(document.getElementById('building'), CONFIG.BUILDINGS, '-- เลือกอาคาร --');
-      fillSelect(document.getElementById('department'), CONFIG.DEPARTMENTS, '-- เลือกหน่วยงาน --');
+      patternPreview.hidden = true;
+      patternImageData = null;
+      fillSelect(buildingSelect, Object.keys(CONFIG.BUILDING_DEPARTMENTS), '-- เลือกอาคาร --');
       fillSelect(document.getElementById('bitrateControl'), CONFIG.BITRATE_CONTROL, '-- เลือก --');
       fillSelect(document.getElementById('videoEncoding'), CONFIG.VIDEO_ENCODING, '-- เลือก --');
     }).catch(() => {
