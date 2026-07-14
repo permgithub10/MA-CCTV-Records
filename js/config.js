@@ -5,7 +5,7 @@
 const CONFIG = {
   // URL ของ Google Apps Script Web App (Deploy > New deployment > Web app)
   // วางลิงก์ที่ได้หลัง deploy ตรงนี้
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwdN60H8Y61gKbgxwnVwifkJg6sq-opJo4P2_3cQ2BseJjBqRq2EaNGasewo5NK1ykYmw/exec",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbw5XBBMun_tX6ykqzO52GI1Uj_mq16lFCrnRC_c_JGtAUdjkS3-Zulqm0Ky_OeaH8G9ng/exec",
 
   // อาคาร -> หน่วยงานที่มีอยู่ในอาคารนั้น
   // แก้ไข/เพิ่ม/ลบ "อาคาร" (key) และ "หน่วยงาน" (array ค่าในแต่ละอาคาร) ได้ตามจริง
